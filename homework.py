@@ -58,16 +58,24 @@ def send_message(bot, message):
 
 def get_api_answer(timestamp):
     """Получает ответ от сервера."""
+    request_kwargs = {
+        'endpoint': ENDPOINT,
+        'headers': HEADERS,
+        'params': {'from_date': timestamp},
+    }
     try:
         logging.debug('Начато обращение к серверу')
-        response = requests.get(
-            ENDPOINT,
-            headers=HEADERS,
-            params={'from_date': timestamp}
+        response = requests.get(**request_kwargs)
+        logging.debug('Ответ получен')
+        if response.status_code != HTTPStatus.OK:
+            raise RequestError
+    except requests.RequestException as error:
+        logging.error(f'Ошибка при запросе. {error}')
+    except RequestError as error:
+        logging.error(
+            f'Неверный статус ответа {response.status_code}'
+            f'Данные запроса: {request_kwargs}'
         )
-        assert response.status_code == HTTPStatus.OK
-    except Exception as error:
-        raise RequestError(response.status_code, error) from error
     else:
         return response.json()
 
