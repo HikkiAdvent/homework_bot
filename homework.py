@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import sys
 import time
@@ -13,12 +14,6 @@ from exceptions import (
 )
 
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    filename='main.log',
-    filemode='w',
-    format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
-)
 
 load_dotenv()
 
@@ -123,4 +118,22 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename='main.log',
+        filemode='w',
+        format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
+    )
+
+    logger = logging.getLogger(__name__)
+    # Устанавливаем уровень, с которого логи будут сохраняться в файл:
+    logger.setLevel(logging.INFO)
+    # Указываем обработчик логов:
+    handler = RotatingFileHandler('my_logger.log', maxBytes=50000000, backupCount=5)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    # Применяем его к хендлеру:
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
     main()
