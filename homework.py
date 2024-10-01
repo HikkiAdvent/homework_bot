@@ -1,5 +1,4 @@
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import sys
 import time
@@ -7,7 +6,7 @@ from http import HTTPStatus
 
 import requests
 from dotenv import load_dotenv
-from telebot import TeleBot
+from telebot import TeleBot, apihelper
 
 from exceptions import (
     SendError, RequestError, ParseError
@@ -32,30 +31,35 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверяет наличие данных в окружении."""
-    try:
-        assert (
-            all([PRACTICUM_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_TOKEN]) is True
-        )
-    except Exception as error:
-        logging.critical(
-            f'Ошибка при чтении токенов. {error}'
-            'Программа была остановлена'
-        )
-        sys.exit()
+    tokens = {
+        'Токен Практикума': PRACTICUM_TOKEN,
+        'ID чата': TELEGRAM_CHAT_ID,
+        'Токен Телеграмма': TELEGRAM_TOKEN,
+    }
+    values = [i for i in tokens.values()]
+    if all(values) is True:
+        return True
+    tokens_failure = [name for name, token in tokens.items() if token is None]
+    logging.critical(f'Отсутствуют {tokens_failure}')
+    return False
 
 
 def send_message(bot, message):
     """Отправляет сообщение от бота."""
     try:
+        logging.debug('Бот начал отправку сообщения')
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
         logging.debug(f'Бот отправил сообщение: {message}')
-    except Exception as error:
-        raise SendError from error
+    except (apihelper.ApiException,
+            requests.RequestException
+            ) as error:
+        logging.error(f'При отправке ответа возникла ошибка. {error}')
 
 
 def get_api_answer(timestamp):
     """Получает ответ от сервера."""
     try:
+        logging.debug('Начато обращение к серверу')
         response = requests.get(
             ENDPOINT,
             headers=HEADERS,
@@ -106,7 +110,7 @@ def main():
         except RequestError as error:
             logging.error(f'Страница недоступна. {error}')
         except SendError as error:
-            logging.error(f'При отправке ответа возникла ошибка. {error}')
+
         except TypeError as error:
             logging.error(f'Некорректный ответ от сервера. {error}')
         except ParseError as error:
