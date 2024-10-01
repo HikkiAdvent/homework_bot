@@ -14,7 +14,6 @@ from exceptions import (
 )
 
 
-
 load_dotenv()
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
@@ -23,7 +22,6 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 RETRY_PERIOD = 600
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
-
 
 HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
@@ -124,16 +122,4 @@ if __name__ == '__main__':
         filemode='w',
         format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
     )
-
-    logger = logging.getLogger(__name__)
-    # Устанавливаем уровень, с которого логи будут сохраняться в файл:
-    logger.setLevel(logging.INFO)
-    # Указываем обработчик логов:
-    handler = RotatingFileHandler('my_logger.log', maxBytes=50000000, backupCount=5)
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    # Применяем его к хендлеру:
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
     main()
