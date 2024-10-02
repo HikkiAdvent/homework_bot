@@ -58,7 +58,7 @@ def send_message(bot: TeleBot, message: str) -> None:
 def get_api_answer(timestamp: int) -> dict:
     """Получает ответ от сервера."""
     request_kwargs = {
-        'endpoint': ENDPOINT,
+        'url': ENDPOINT,
         'headers': HEADERS,
         'params': {'from_date': timestamp},
     }
