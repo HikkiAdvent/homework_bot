@@ -89,10 +89,7 @@ def check_response(response: dict) -> bool:
         )
         raise TypeError
     if not isinstance(response.get('homeworks'), list):
-        logging.error(
-            f'Получен неправильный ответ {response.get('homeworks')}'
-            'Значение "homeworks" не является списком.'
-        )
+        logging.error('Значение "homeworks" не является списком.')
         raise TypeError
     if response.get('homeworks') == []:
         logging.debug('Статус работы не изменился')
