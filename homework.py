@@ -8,9 +8,7 @@ import requests
 from dotenv import load_dotenv
 from telebot import TeleBot, apihelper
 
-from exceptions import (
-    SendError, RequestError, ParseError
-)
+from exceptions import RequestError, SendError, ParseError
 
 
 load_dotenv()
@@ -29,7 +27,7 @@ HOMEWORK_VERDICTS = {
 }
 
 
-def check_tokens():
+def check_tokens() -> bool:
     """Проверяет наличие данных в окружении."""
     tokens = {
         'Токен Практикума': PRACTICUM_TOKEN,
@@ -44,7 +42,7 @@ def check_tokens():
     return False
 
 
-def send_message(bot, message):
+def send_message(bot: TeleBot, message: str) -> None:
     """Отправляет сообщение от бота."""
     try:
         logging.debug('Бот начал отправку сообщения')
@@ -53,10 +51,11 @@ def send_message(bot, message):
     except (apihelper.ApiException,
             requests.RequestException
             ) as error:
-        logging.error(f'При отправке ответа возникла ошибка. {error}')
+        logging.error(f'При отправке сообщения возникла ошибка. {error}')
+        raise SendError('При отправе сообщения возникла ошибка') from error
 
 
-def get_api_answer(timestamp):
+def get_api_answer(timestamp: int) -> dict:
     """Получает ответ от сервера."""
     request_kwargs = {
         'endpoint': ENDPOINT,
@@ -68,7 +67,7 @@ def get_api_answer(timestamp):
         response = requests.get(**request_kwargs)
         logging.debug('Ответ получен')
         if response.status_code != HTTPStatus.OK:
-            raise RequestError
+            raise RequestError(response.status_code, request_kwargs)
     except requests.RequestException as error:
         logging.error(f'Ошибка при запросе. {error}')
     except RequestError as error:
@@ -76,38 +75,51 @@ def get_api_answer(timestamp):
             f'Неверный статус ответа {response.status_code}'
             f'Данные запроса: {request_kwargs}'
         )
+        raise RequestError from error
     else:
         return response.json()
 
 
-def check_response(response):
-    """Проверяет ответ от сервера."""
-    try:
-        assert type(response.get('homeworks')) == list
-    except Exception as error:
-        raise TypeError from error
-    else:
-        if response.get('homeworks') != []:
-            return True
+def check_response(response: dict) -> bool:
+    """Проверяет ответ от сервера на условие, что статус изменился."""
+    if not isinstance(response, dict):
+        logging.error(
+            f'Получен неправильный ответ{response}'
+            'Ответ не является словарем.'
+        )
+        raise TypeError
+    if not isinstance(response.get('homeworks'), list):
+        logging.error(
+            f'Получен неправильный ответ {response.get('homeworks')}'
+            'Значение "homeworks" не является списком.'
+        )
+        raise TypeError
+    if response.get('homeworks') == []:
         logging.debug('Статус работы не изменился')
+        return False
+    return True
 
 
-def parse_status(homework):
+def parse_status(homework: dict) -> str:
     """Возвращает статус работы."""
-    try:
-        status = homework['status']
+    status = homework.get('status')
+    homework_name = homework.get('homework_name')
+    if not homework_name:
+        raise ParseError
+    if status in HOMEWORK_VERDICTS:
         verdict = HOMEWORK_VERDICTS[status]
-        homework_name = homework['homework_name']
-    except Exception as error:
-        raise ParseError from error
-    return f'Изменился статус проверки работы "{homework_name}". {verdict}'
+        return f'Изменился статус проверки работы "{homework_name}". {verdict}'
+    logging.error(f'Неизвестный статус работы {status}')
+    raise ParseError
 
 
-def main():
+def main() -> None:
     """Основная логика работы бота."""
+    if not check_tokens():
+        logging.critical('Программа завершает работу')
+        sys.exit()
     bot = TeleBot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    check_tokens()
 
     while True:
         try:
@@ -115,15 +127,14 @@ def main():
             if check_response(response):
                 message = parse_status(response['homeworks'][0])
                 send_message(bot, message)
-        except RequestError as error:
-            logging.error(f'Страница недоступна. {error}')
-        except SendError as error:
-
-        except TypeError as error:
-            logging.error(f'Некорректный ответ от сервера. {error}')
-        except ParseError as error:
-            logging.error(error)
+        except Exception as error:
+            send_message(bot, f'Во время работы возникли ошибки. {error}')
         finally:
+            current_date = response.get('current_date')
+            logging.debug(f'Старая дата запроса {timestamp}')
+            timestamp = current_date if current_date else timestamp
+            logging.debug(f'Новая дата запроса {timestamp}')
+            logging.debug(f'Следующий запрос будет через {RETRY_PERIOD}')
             time.sleep(RETRY_PERIOD)
 
 
