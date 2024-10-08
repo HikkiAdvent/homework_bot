@@ -128,7 +128,8 @@ def main() -> None:
         try:
             response = get_api_answer(timestamp)
             if check_response(response):
-                if message != (message := parse_status(response['homeworks'][0])):
+                response = response['homeworks'][0]
+                if message != (message := parse_status(response)):
                     send_message(bot, message)
         except Exception as error:
             logging.error(f'Произошла ошибка: {error}')
