@@ -141,12 +141,15 @@ def main() -> None:
             )
         except Exception as error:
             logging.error(f'Произошла ошибка: {error}')
-            if message != (message := f'При работе возникли ошибки: {error}'):
-                send_message(bot, message)
+            if (
+                message != (new_message := f'Возникли ошибки ошибки: {error}')
+            ):
+                send_message(bot, new_message)
+                message = new_message
         else:
             logging.debug(f'Старая дата запроса {timestamp}')
             timestamp = response.get('current_date', timestamp)
-            logging.debug(f'Новая дата запроса {timestamp}')  
+            logging.debug(f'Новая дата запроса {timestamp}')
         finally:
             logging.debug(f'Следующий запрос будет через {RETRY_PERIOD}')
             time.sleep(RETRY_PERIOD)
