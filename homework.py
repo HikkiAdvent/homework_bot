@@ -56,7 +56,6 @@ def send_message(bot: TeleBot, message: str) -> None:
     except (apihelper.ApiException,
             requests.RequestException
             ) as error:
-        logging.error(f'При отправке сообщения возникла ошибка. {error}')
         raise SendError('При отправе сообщения возникла ошибка') from error
 
 
@@ -72,7 +71,9 @@ def get_api_answer(timestamp: int) -> dict:
         response = requests.get(**request_kwargs)
         logging.debug('Ответ получен')
     except requests.RequestException as error:
-        raise RequestError(f'Ошибка во время выполнения запроса: {error}')
+        raise RequestError(
+            f'Ошибка во время выполнения запроса: {error}, {request_kwargs}'
+        )
     if response.status_code != HTTPStatus.OK:
         raise RequestError(
             f'Ошибочный статус{response.status_code, request_kwargs}'
@@ -83,33 +84,34 @@ def get_api_answer(timestamp: int) -> dict:
 def check_response(response: dict) -> bool:
     """Проверяет ответ от сервера на условие, что статус изменился."""
     if not isinstance(response, dict):
-        logging.error(
-            f'Получен неправильный ответ{response}'
-            'Ответ не является словарем.'
-        )
         raise TypeError('Ответ сервера получен не в виде словаря.')
     if 'homeworks' not in response:
         raise TypeError('В ответе отсутствует ключ "homeworks"')
     if not isinstance(response.get('homeworks'), list):
-        logging.error('Значение "homeworks" не является списком.')
         raise TypeError('Значение "homeworks" не является списком.')
-    if not response.get('homeworks'):
-        logging.debug('Статус работы не изменился.')
-        return False
     return True
 
 
 def parse_status(homework: dict) -> str:
     """Возвращает статус работы."""
-    status = homework.get('status')
-    homework_name = homework.get('homework_name')
-    if not (status and homework_name):
+    if 'status' not in homework:
         raise ParseError(
-            f'Отсутствуют нужные ключи {status=}, {homework_name=}'
+            'Отсутствуют необходимые ключи "status"'
+            f'{homework}'
+        )
+    status = homework.get('status')
+    if 'homework_name' not in homework:
+        raise ParseError(
+            'Отсутствуют необходимые ключи "homework_name"'
+            f'{homework}'
+        )
+    homework_name = homework.get('homework_name')
+    if not homework_name:
+        raise ParseError(
+            f'Отсутствуют значение ключа {homework_name=}'
         )
     if status not in HOMEWORK_VERDICTS:
-        logging.error(f'Неизвестный статус работы {status}.')
-        raise ParseError('Неизвестный статус работы.')
+        raise ParseError(f'Неизвестный статус работы: {status}')
     return (
         f'Изменился статус проверки работы "{homework_name}".'
         f'{HOMEWORK_VERDICTS[status]}'
@@ -129,16 +131,23 @@ def main() -> None:
             response = get_api_answer(timestamp)
             if check_response(response):
                 response = response['homeworks'][0]
-                if message != (message := parse_status(response)):
-                    send_message(bot, message)
+                if message != (new_message := parse_status(response)):
+                    send_message(bot, new_message)
+                    message = new_message
+        except SendError as error:
+            logging.error(
+                'Во время отправки сообщения произошла ошибка'
+                f'{error}'
+            )
         except Exception as error:
             logging.error(f'Произошла ошибка: {error}')
             if message != (message := f'При работе возникли ошибки: {error}'):
                 send_message(bot, message)
-        finally:
+        else:
             logging.debug(f'Старая дата запроса {timestamp}')
-            timestamp = response.get('current_date') or timestamp
-            logging.debug(f'Новая дата запроса {timestamp}')
+            timestamp = response.get('current_date', timestamp)
+            logging.debug(f'Новая дата запроса {timestamp}')  
+        finally:
             logging.debug(f'Следующий запрос будет через {RETRY_PERIOD}')
             time.sleep(RETRY_PERIOD)
 
