@@ -111,7 +111,7 @@ def parse_status(homework: dict) -> str:
             f'Отсутствуют значение ключа {homework_name=}'
         )
     if status not in HOMEWORK_VERDICTS:
-        raise ParseError(f'Неизвестный статус работы: {status}')
+        raise ParseError(f'Неизвестный статус работы: {status=}')
     return (
         f'Изменился статус проверки работы "{homework_name}".'
         f'{HOMEWORK_VERDICTS[status]}'
