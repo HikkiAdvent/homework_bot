@@ -111,7 +111,7 @@ def parse_status(homework: dict) -> str:
             f'Отсутствуют значение ключа {homework_name=}'
         )
     if status not in HOMEWORK_VERDICTS:
-        raise ParseError(f'Неизвестный статус работы: {status}')
+        raise ParseError(f'Неизвестный статус работы: {status=}')
     return (
         f'Изменился статус проверки работы "{homework_name}".'
         f'{HOMEWORK_VERDICTS[status]}'
@@ -130,10 +130,11 @@ def main() -> None:
         try:
             response = get_api_answer(timestamp)
             if check_response(response):
-                response = response['homeworks'][0]
-                if message != (new_message := parse_status(response)):
-                    send_message(bot, new_message)
-                    message = new_message
+                if response := response['homeworks']:
+                    response = response[0]
+                    if message != (new_message := parse_status(response)):
+                        send_message(bot, new_message)
+                        message = new_message
         except SendError as error:
             logging.error(
                 'Во время отправки сообщения произошла ошибка'
