@@ -128,11 +128,11 @@ def main() -> None:
     message = ''
     while True:
         try:
-            response = get_api_answer(timestamp)
-            if check_response(response):
-                if response := response['homeworks']:
-                    response = response[0]
-                    if message != (new_message := parse_status(response)):
+            homeworks = get_api_answer(timestamp)
+            if check_response(homeworks):
+                if homeworks := homeworks['homeworks']:
+                    homework = homeworks[0]
+                    if message != (new_message := parse_status(homework)):
                         send_message(bot, new_message)
                         message = new_message
         except SendError as error:
@@ -149,7 +149,7 @@ def main() -> None:
                 message = new_message
         else:
             logging.debug(f'Старая дата запроса {timestamp}')
-            timestamp = response.get('current_date', timestamp)
+            timestamp = homeworks.get('current_date', timestamp)
             logging.debug(f'Новая дата запроса {timestamp}')
         finally:
             logging.debug(f'Следующий запрос будет через {RETRY_PERIOD}')
